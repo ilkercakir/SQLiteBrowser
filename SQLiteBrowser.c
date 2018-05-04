@@ -62,6 +62,12 @@ void setup_default_icon(char *filename)
     	}
 }
 
+void statusbar_message(sqlitebrowser *b, char *s)
+{
+	gtk_statusbar_pop(GTK_STATUSBAR(b->statusbar), b->statusbar_cid);
+	gtk_statusbar_push(GTK_STATUSBAR(b->statusbar), b->statusbar_cid, s);
+}
+
 int field_select_callback(void *data, int argc, char **argv, char **azColName) 
 {
 	sqlitebrowser *b = (sqlitebrowser *)data;
@@ -83,12 +89,14 @@ void read_fields(sqlitebrowser *b, char *table)
 {
 	sqlite3 *db;
 	char *err_msg = NULL;
-	char sql[100];
+	char sql[100], res[256];
 	int rc;
 
 	if ((rc = sqlite3_open(b->dbpath, &db)))
 	{
-		printf("Can't open database: %s\n", sqlite3_errmsg(db));
+		sprintf(res, "Can't open database: %s", sqlite3_errmsg(db));
+		printf("%s\n", res);
+		statusbar_message(b, res);
 	}
 	else
 	{
@@ -97,7 +105,9 @@ void read_fields(sqlitebrowser *b, char *table)
 		//sql = "pragma table_info(eqpresets);";
 		if ((rc = sqlite3_exec(db, sql, field_select_callback, b, &err_msg)) != SQLITE_OK)
 		{
-			printf("Failed to select data, %s\n", err_msg);
+			sprintf(res, "statement %s failed: %s", sql, err_msg);
+			printf("%s\n", res);
+			statusbar_message(b, res);
 			sqlite3_free(err_msg);
 		}
 		else
@@ -132,13 +142,16 @@ void read_tables(sqlitebrowser *b, char *path)
 	sqlite3 *db;
 	char *err_msg = NULL;
 	char *sql = NULL;
+	char res[256];
 	int rc;
 
 	strcpy(b->dbpath, path);
 
 	if ((rc = sqlite3_open(b->dbpath, &db)))
 	{
-		printf("Can't open database: %s\n", sqlite3_errmsg(db));
+		sprintf(res, "Can't open database: %s", sqlite3_errmsg(db));
+		printf("%s\n", res);
+		statusbar_message(b, res);
 	}
 	else
 	{
@@ -147,7 +160,9 @@ void read_tables(sqlitebrowser *b, char *path)
 		//sql = "pragma table_info(eqpresets);";
 		if ((rc = sqlite3_exec(db, sql, table_select_callback, b, &err_msg)) != SQLITE_OK)
 		{
-			printf("Failed to select data, %s\n", err_msg);
+			sprintf(res, "statement %s failed: %s", sql, err_msg);
+			printf("%s\n", res);
+			statusbar_message(b, res);
 			sqlite3_free(err_msg);
 		}
 		else
@@ -192,8 +207,6 @@ GtkTreeModel *create_and_fill_model(sqlitebrowser *b, char *path)
 						
 					}
 				}
-//printf("%s\n", p1);
-
 			}
 			free(line); line = NULL; len = 0;
 		}
@@ -207,41 +220,53 @@ GtkTreeModel *create_and_fill_model(sqlitebrowser *b, char *path)
 
 void create_view_and_model(sqlitebrowser *b, char *path)
 {
-  GtkTreeViewColumn *col;
-  GtkCellRenderer *renderer;
-  GtkTreeModel *model;
+	GtkTreeViewColumn *col;
+	GtkCellRenderer *renderer;
+	GtkTreeModel *model;
 
-  b->view = gtk_tree_view_new();
+	b->view = gtk_tree_view_new();
 
-  col = gtk_tree_view_column_new();
-  gtk_tree_view_column_set_title(col, "Name");
-  gtk_tree_view_append_column(GTK_TREE_VIEW(b->view), col);
+	col = gtk_tree_view_column_new();
+	gtk_tree_view_column_set_title(col, "Name");
+	gtk_tree_view_append_column(GTK_TREE_VIEW(b->view), col);
 
-  renderer = gtk_cell_renderer_text_new();
-  gtk_tree_view_column_pack_start(col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute(col, renderer, "text", COL_NAME);
-
-
-  col = gtk_tree_view_column_new();
-  gtk_tree_view_column_set_title(col, "Type");
-  gtk_tree_view_append_column(GTK_TREE_VIEW(b->view), col);
-
-  renderer = gtk_cell_renderer_text_new();
-  gtk_tree_view_column_pack_start(col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute(col, renderer, "text", COL_TYPE);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_column_pack_start(col, renderer, TRUE);
+	gtk_tree_view_column_add_attribute(col, renderer, "text", COL_NAME);
 
 
-  col = gtk_tree_view_column_new();
-  gtk_tree_view_column_set_title(col, "Path");
-  gtk_tree_view_append_column(GTK_TREE_VIEW(b->view), col);
+	col = gtk_tree_view_column_new();
+	gtk_tree_view_column_set_title(col, "Type");
+	gtk_tree_view_append_column(GTK_TREE_VIEW(b->view), col);
 
-  renderer = gtk_cell_renderer_text_new();
-  gtk_tree_view_column_pack_start(col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute(col, renderer, "text", COL_PATH);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_column_pack_start(col, renderer, TRUE);
+	gtk_tree_view_column_add_attribute(col, renderer, "text", COL_TYPE);
 
-  model = create_and_fill_model(b, path);
-  gtk_tree_view_set_model(GTK_TREE_VIEW(b->view), model);
-  g_object_unref(model); 
+
+	col = gtk_tree_view_column_new();
+	gtk_tree_view_column_set_title(col, "Path");
+	gtk_tree_view_append_column(GTK_TREE_VIEW(b->view), col);
+
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_column_pack_start(col, renderer, TRUE);
+	gtk_tree_view_column_add_attribute(col, renderer, "text", COL_PATH);
+
+
+	model = create_and_fill_model(b, path);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(b->view), model);
+	g_object_unref(model);
+}
+
+void detach_model(sqlitebrowser *b)
+{
+	GtkTreeModel *model;
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(b->view));
+	gtk_tree_store_clear((GtkTreeStore*)model);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(b->view), NULL); /* Detach model from view */
+
+	gtk_widget_destroy(b->view);
 }
 
 void treeview_selection_changed(GtkWidget *widget, gpointer data)
@@ -263,8 +288,7 @@ void treeview_selection_changed(GtkWidget *widget, gpointer data)
 		if (!g_strcmp0(type, gc))
 		{
 			strcpy(b->dbpath, path);
-			gtk_statusbar_pop(GTK_STATUSBAR(b->statusbar), b->statusbar_cid);
-			gtk_statusbar_push(GTK_STATUSBAR(b->statusbar), b->statusbar_cid, path);
+			statusbar_message(b, b->dbpath);
 		}
 		g_free(gc);
 		g_free(type);
@@ -287,7 +311,7 @@ int run_query_callback(void *data, int argc, char **argv, char **azColName)
 
 		for(i=0;i<argc;i++)
 		{
-//			printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+//printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
 			renderer = gtk_cell_renderer_text_new();
 			gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(b->resultview), -1, azColName[i], renderer, "text", i, NULL);
 		}
@@ -316,7 +340,7 @@ void run_query(sqlitebrowser *b, char *query)
 {
 	sqlite3 *db;
 	char *err_msg = NULL;
-	char sql[200];
+	char sql[512], res[256];
 	int rc;
 
 	if (b->resultview)
@@ -329,7 +353,9 @@ void run_query(sqlitebrowser *b, char *query)
 
 	if ((rc = sqlite3_open(b->dbpath, &db)))
 	{
-		printf("Can't open database: %s\n", sqlite3_errmsg(db));
+		sprintf(res, "Can't open database: %s", sqlite3_errmsg(db));
+		printf("%s\n", res);
+		statusbar_message(b, res);
 	}
 	else
 	{
@@ -337,12 +363,23 @@ void run_query(sqlitebrowser *b, char *query)
 		sprintf(sql, "%s", query);
 		if ((rc = sqlite3_exec(db, sql, run_query_callback, b, &err_msg)) != SQLITE_OK)
 		{
-			printf("Failed to select data, %s\n", err_msg);
+			sprintf(res, "%s", err_msg);
+			printf("%s\n", res);
+			statusbar_message(b, res);
 			sqlite3_free(err_msg);
 		}
 		else
 		{
 // success
+			if (b->recordcount)
+			{
+				sprintf(res, "%d records selected", b->recordcount);
+			}
+			else
+			{
+				sprintf(res, "Statement executed");
+			}
+			statusbar_message(b, res);
 		}
 	}
 	sqlite3_close(db);
@@ -359,9 +396,24 @@ void run_query(sqlitebrowser *b, char *query)
 	}
 }
 
+void dbrefreshbutton_clicked(GtkToolButton *toolbutton, gpointer data)
+{
+	sqlitebrowser *b = (sqlitebrowser *)data;
+
+	detach_model(b);
+
+	create_view_and_model(b, "./SQLiteBrowser.txt");
+	b->selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(b->view));
+	g_signal_connect(b->selection, "changed", G_CALLBACK(treeview_selection_changed), b);
+	gtk_container_add(GTK_CONTAINER(b->treescroll), b->view);
+
+	gtk_widget_show_all(b->treescroll);
+}
+
 void openquerybutton_clicked(GtkToolButton *toolbutton, gpointer data)
 {
 	sqlitebrowser *b = (sqlitebrowser*)data;
+	char res[256];
 
 	GtkWidget *dialog;
 	GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
@@ -397,7 +449,11 @@ void openquerybutton_clicked(GtkToolButton *toolbutton, gpointer data)
 				g_free(qstring);
 			}
 			else
-				printf("failed to open file %s\n", (char*)chosenfile->data);
+			{
+				sprintf(res, "failed to open file %s\n", (char*)chosenfile->data);
+				printf("%s\n", res);
+				statusbar_message(b, res);
+			}
 		}
 	}
 	gtk_widget_destroy(dialog);
@@ -406,6 +462,7 @@ void openquerybutton_clicked(GtkToolButton *toolbutton, gpointer data)
 void savequerybutton_clicked(GtkToolButton *toolbutton, gpointer data)
 {
 	sqlitebrowser *b = (sqlitebrowser*)data;
+	char res[256];
 
 	GtkWidget *dialog;
 	GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
@@ -438,7 +495,11 @@ void savequerybutton_clicked(GtkToolButton *toolbutton, gpointer data)
 				fclose(f);
 			}
 			else
-				printf("failed to save file %s\n", (char*)chosenfile->data);
+			{
+				sprintf(res, "failed to open file %s\n", (char*)chosenfile->data);
+				printf("%s\n", res);
+				statusbar_message(b, res);
+			}
 		}
 	}
 	gtk_widget_destroy(dialog);
@@ -502,14 +563,27 @@ int main(int argc, char **argv)
 	b.frame1 = gtk_frame_new("Database");
 	gtk_frame_set_shadow_type(GTK_FRAME(b.frame1), GTK_SHADOW_IN);
 
-// treeview
 	b.vboxdb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 	gtk_container_add(GTK_CONTAINER(b.frame1), b.vboxdb);
 
+	b.httbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+	gtk_container_add(GTK_CONTAINER(b.vboxdb), b.httbox);
+
+// toolbox
+	b.ttoolbar = gtk_toolbar_new();
+	gtk_container_add(GTK_CONTAINER(b.httbox), b.ttoolbar);
+
+	b.icon_widget = gtk_image_new_from_icon_name("view-refresh", GTK_ICON_SIZE_BUTTON);
+	b.dbrefreshbutton = gtk_tool_button_new(b.icon_widget, "Refresh");
+	gtk_tool_item_set_tooltip_text(b.dbrefreshbutton, "Refresh");
+	g_signal_connect(b.dbrefreshbutton, "clicked", G_CALLBACK(dbrefreshbutton_clicked), &b);
+	gtk_toolbar_insert(GTK_TOOLBAR(b.ttoolbar), b.dbrefreshbutton, -1);
+
+// treeview
 	b.treescroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_set_border_width(GTK_CONTAINER(b.treescroll), 5);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(b.treescroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-	//gtk_widget_set_size_request(b.treescroll, 100, 100);
+	gtk_widget_set_size_request(b.treescroll, 250, 500);
 	//gtk_container_add(GTK_CONTAINER(b.vboxdb), b.treescroll);
 	gtk_box_pack_start(GTK_BOX(b.vboxdb), b.treescroll, TRUE, TRUE, 0);
 
@@ -556,7 +630,7 @@ int main(int argc, char **argv)
 	b.queryscroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_set_border_width(GTK_CONTAINER(b.queryscroll), 5);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(b.queryscroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-	//gtk_widget_set_size_request(b.queryscroll, 100, 100);
+	gtk_widget_set_size_request(b.queryscroll, 500, 200);
 	//gtk_container_add(GTK_CONTAINER(b.vqbox), b.queryscroll);
 	gtk_box_pack_start(GTK_BOX(b.vqbox), b.queryscroll, TRUE, TRUE, 0);
 
@@ -564,8 +638,9 @@ int main(int argc, char **argv)
 	gtk_container_add(GTK_CONTAINER(b.queryscroll), b.hqbox);
 
 	b.querytext = gtk_text_view_new();
-	gtk_widget_set_size_request(b.querytext, 100, 100);
-	gtk_container_add(GTK_CONTAINER(b.hqbox), b.querytext);
+	//gtk_widget_set_size_request(b.querytext, 100, 100);
+	//gtk_container_add(GTK_CONTAINER(b.hqbox), b.querytext);
+	gtk_box_pack_start(GTK_BOX(b.hqbox), b.querytext, TRUE, TRUE, 0);
 
 // frame bottom
 	b.frameh2 = gtk_frame_new("Records");
@@ -577,7 +652,7 @@ int main(int argc, char **argv)
 	b.resultscroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_set_border_width(GTK_CONTAINER(b.resultscroll), 5);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(b.resultscroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-	//gtk_widget_set_size_request(b.resultscroll, 100, 100);
+	gtk_widget_set_size_request(b.resultscroll, 500, 300);
 	//gtk_container_add(GTK_CONTAINER(b.hboxres), b.resultscroll);
 	gtk_box_pack_start(GTK_BOX(b.hboxres), b.resultscroll, TRUE, TRUE, 0);
 

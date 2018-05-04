@@ -27,6 +27,9 @@ typedef struct
 	GtkWidget *frameh1;
 	GtkWidget *frameh2;
 	GtkWidget *vboxdb;
+	GtkWidget *httbox;
+	GtkWidget *ttoolbar;
+	GtkToolItem *dbrefreshbutton;
 	GtkWidget *view;
 	GtkTreeSelection *selection;
 	GtkTreeStore *treestore;

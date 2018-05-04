@@ -1,0 +1,2 @@
+mediaplayer;/var/sqlite3DATA/mediaplayer.db
+test;/var/sqlite3DATA/test.db
